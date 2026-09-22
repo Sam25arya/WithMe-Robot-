@@ -1,0 +1,19 @@
+# Rust build output
+/target/
+
+# Generated dependency lockfile for this library crate
+/Cargo.lock
+
+# Editor and local tooling files
+.vscode/
+.idea/
+
+# OS and temporary files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*.swo
+
+# Rust backup files
+*.rs.bk
