@@ -1,19 +1,15 @@
 // WithMe Gentle Companion Reminders Component
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { memoryStore } from '../engine/memoryStore';
 import { Bell, CheckCircle2, Circle, Plus, Trash2, Calendar, HeartHandshake } from 'lucide-react';
 
 export default function RemindersSystem() {
-  const [reminders, setReminders] = useState([]);
+  const [reminders, setReminders] = useState(() => memoryStore.getReminders());
   const [showAddModal, setShowAddModal] = useState(false);
   const [title, setTitle] = useState('');
   const [due, setDue] = useState('');
   const [note, setNote] = useState('');
-
-  useEffect(() => {
-    setReminders(memoryStore.getReminders());
-  }, []);
 
   const handleToggle = (id) => {
     const updated = memoryStore.toggleReminder(id);

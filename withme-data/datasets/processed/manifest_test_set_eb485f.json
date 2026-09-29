@@ -1,0 +1,107 @@
+{
+  "id": "manifest_test_set_eb485f",
+  "name": "Manifest Test Set",
+  "source_file": "sample_manifest_data.jsonl",
+  "validation_stats": {
+    "total_input_records": 5,
+    "valid_conversations": 5,
+    "invalid_count": 0,
+    "empty_count": 0,
+    "duplicates_removed": 0,
+    "missing_assistant_count": 0,
+    "excessive_length_count": 0,
+    "secret_warnings": 0,
+    "error_count": 0,
+    "actionable_errors": []
+  },
+  "split_info": {
+    "train_ratio": 0.6,
+    "val_ratio": 0.2,
+    "test_ratio": 0.2,
+    "seed": 42,
+    "train_count": 3,
+    "val_count": 1,
+    "test_count": 1
+  },
+  "train": [
+    {
+      "conversation_id": "record_0003",
+      "category": "general",
+      "robot_state": "attentive",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Prompt 3"
+        },
+        {
+          "role": "assistant",
+          "content": "Response 3"
+        }
+      ]
+    },
+    {
+      "conversation_id": "record_0001",
+      "category": "general",
+      "robot_state": "attentive",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Prompt 1"
+        },
+        {
+          "role": "assistant",
+          "content": "Response 1"
+        }
+      ]
+    },
+    {
+      "conversation_id": "record_0002",
+      "category": "general",
+      "robot_state": "attentive",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Prompt 2"
+        },
+        {
+          "role": "assistant",
+          "content": "Response 2"
+        }
+      ]
+    }
+  ],
+  "validation": [
+    {
+      "conversation_id": "record_0004",
+      "category": "general",
+      "robot_state": "attentive",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Prompt 4"
+        },
+        {
+          "role": "assistant",
+          "content": "Response 4"
+        }
+      ]
+    }
+  ],
+  "test": [
+    {
+      "conversation_id": "record_0000",
+      "category": "general",
+      "robot_state": "attentive",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Prompt 0"
+        },
+        {
+          "role": "assistant",
+          "content": "Response 0"
+        }
+      ]
+    }
+  ]
+}

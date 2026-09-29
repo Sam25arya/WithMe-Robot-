@@ -1,0 +1,28 @@
+{
+  "type": "WithMeTokenizer",
+  "vocab": {
+    "<pad>": 0,
+    "<unk>": 1,
+    "<bos>": 2,
+    "<eos>": 3,
+    "<user>": 4,
+    "<assistant>": 5,
+    "<system>": 6,
+    "<robot>": 7,
+    "Save": 8,
+    "and": 9,
+    "load": 10,
+    "test": 11
+  },
+  "special_tokens": [
+    "<pad>",
+    "<unk>",
+    "<bos>",
+    "<eos>",
+    "<user>",
+    "<assistant>",
+    "<system>",
+    "<robot>"
+  ],
+  "vocab_size": 12
+}

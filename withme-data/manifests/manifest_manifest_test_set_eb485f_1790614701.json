@@ -1,0 +1,25 @@
+{
+  "manifest_id": "manifest_manifest_test_set_eb485f_1790614701",
+  "dataset_id": "manifest_test_set_eb485f",
+  "dataset_name": "Manifest Test Set",
+  "created_at": "2026-09-28T16:58:21Z",
+  "source_file": "sample_manifest_data.jsonl",
+  "source_description": "Automated unit test",
+  "license": "MIT / Test",
+  "file_hash_sha256": "435bafe778fe95cd0d73764393cbbb42ca4a709bdb480a251bacf940aec31024",
+  "tokenizer_version": "WithMeTokenizer-v1",
+  "split_configuration": {
+    "seed": 42,
+    "train_count": 3,
+    "val_count": 1,
+    "test_count": 1,
+    "total_conversations": 5
+  },
+  "validation_summary": {
+    "total_input_records": 5,
+    "valid_conversations": 5,
+    "invalid_count": 0,
+    "duplicates_removed": 0,
+    "secret_warnings": 0
+  }
+}

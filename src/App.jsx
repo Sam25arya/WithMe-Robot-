@@ -8,6 +8,7 @@ import MemoryVault from './components/MemoryVault';
 import GameCenter from './components/GameCenter';
 import RemindersSystem from './components/RemindersSystem';
 import RobotLab from './components/RobotLab';
+import TrainingStudio from './components/training-studio/TrainingStudio';
 import SettingsModal from './components/SettingsModal';
 import { memoryStore } from './engine/memoryStore';
 import { applyMoodTheme, getMoodById } from './engine/moodThemeEngine';
@@ -77,6 +78,10 @@ export default function App() {
 
         {activeTab === 'memory' && (
           <MemoryVault userProfile={userProfile} />
+        )}
+
+        {activeTab === 'trainingStudio' && (
+          <TrainingStudio userProfile={userProfile} />
         )}
 
         {activeTab === 'games' && (

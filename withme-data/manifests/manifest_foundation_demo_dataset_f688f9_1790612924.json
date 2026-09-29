@@ -1,0 +1,25 @@
+{
+  "manifest_id": "manifest_foundation_demo_dataset_f688f9_1790612924",
+  "dataset_id": "foundation_demo_dataset_f688f9",
+  "dataset_name": "Foundation Demo Dataset",
+  "created_at": "2026-09-28T16:28:44Z",
+  "source_file": "withme_synthetic_demo.jsonl",
+  "source_description": "Manual import",
+  "license": "Internal Research",
+  "file_hash_sha256": "e901592031e794b10739795d2bd13abd496d4a1320b5021f92dd78bfeed403ea",
+  "tokenizer_version": "WithMeTokenizer-v1",
+  "split_configuration": {
+    "seed": 42,
+    "train_count": 6,
+    "val_count": 1,
+    "test_count": 1,
+    "total_conversations": 8
+  },
+  "validation_summary": {
+    "total_input_records": 8,
+    "valid_conversations": 8,
+    "invalid_count": 0,
+    "duplicates_removed": 0,
+    "secret_warnings": 0
+  }
+}

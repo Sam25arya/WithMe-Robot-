@@ -21,7 +21,15 @@ const DEFAULT_SETTINGS = {
   geminiApiKey: '',
   useLocalFallbackOnly: true,
   enableSoundEffects: true,
-  robotHardwareMode: false
+  robotHardwareMode: false,
+  voiceURI: '',
+  voicePitch: 1.1,
+  voiceRate: 1.0,
+  voiceVolume: 1.0,
+  autoSpeechEnabled: false,
+  handsFreeMode: false,
+  accessorySkin: 'headphones',
+  auraSkin: 'cyber'
 };
 
 const INITIAL_MEMORIES = [

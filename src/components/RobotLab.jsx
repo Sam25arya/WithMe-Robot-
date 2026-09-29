@@ -3,11 +3,17 @@
 import React, { useState } from 'react';
 import CompanionAvatar from './CompanionAvatar';
 import confetti from 'canvas-confetti';
-import { Cpu, Eye, Radio, Activity, Sparkles, Heart, Music, Waves, Moon, Palette, Move, ShieldCheck } from 'lucide-react';
+import { memoryStore } from '../engine/memoryStore';
+import { Cpu, Eye, Activity, Sparkles, Heart, Music, Waves, Moon, Palette, Move, Shirt, Zap, Check } from 'lucide-react';
 
 export default function RobotLab() {
-  const [ghostEmotion, setGhostEmotion] = useState('happy'); // 'happy'|'curious'|'loving'|'sad'|'excited'|'sleepy'
-  const [customEyeColor, setCustomEyeColor] = useState('#38bdf8'); // Default Cyan
+  const [appSettings, setAppSettings] = useState(() => memoryStore.getSettings());
+  const [ghostEmotion, setGhostEmotion] = useState('happy');
+  const [customEyeColor, setCustomEyeColor] = useState('#38bdf8');
+  const [accessorySkin, setAccessorySkin] = useState(appSettings.accessorySkin || 'headphones');
+  const [auraSkin, setAuraSkin] = useState(appSettings.auraSkin || 'cyber');
+  const [savedSkinSuccess, setSavedSkinSuccess] = useState(false);
+
   const [isDancing, setIsDancing] = useState(false);
   const [isWaving, setIsWaving] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
@@ -42,6 +48,37 @@ export default function RobotLab() {
     { name: 'Emerald', hex: '#34d399' },
     { name: 'Violet Glow', hex: '#c084fc' }
   ];
+
+  // Accessories List
+  const accessoryList = [
+    { id: 'headphones', label: 'Headphones', icon: '🎧' },
+    { id: 'wizard', label: 'Wizard Hat', icon: '🧙‍♂️' },
+    { id: 'crown', label: 'Royal Crown', icon: '👑' },
+    { id: 'catears', label: 'Cat Ears', icon: '🐱' },
+    { id: 'halo', label: 'Angel Halo', icon: '😇' },
+    { id: 'sunglasses', label: 'Cool Shades', icon: '🕶️' },
+    { id: 'flower', label: 'Blossom', icon: '🌸' }
+  ];
+
+  // Aura List
+  const auraList = [
+    { id: 'cyber', label: 'Cyber Cyan', icon: '⚡' },
+    { id: 'stardust', label: 'Stardust', icon: '✨' },
+    { id: 'galaxy', label: 'Galaxy', icon: '🌌' },
+    { id: 'hearts', label: 'Pink Hearts', icon: '💖' },
+    { id: 'none', label: 'Minimal', icon: '🚫' }
+  ];
+
+  // Save Skin Preferences Globally
+  const handleSaveSkin = () => {
+    const updated = { ...appSettings, accessorySkin, auraSkin };
+    memoryStore.setSettings(updated);
+    setAppSettings(updated);
+    setSavedSkinSuccess(true);
+    confetti({ particleCount: 50, spread: 60 });
+    addLog(`[Customizer] Saved global companion skin: ${accessorySkin.toUpperCase()} + ${auraSkin.toUpperCase()} aura!`);
+    setTimeout(() => setSavedSkinSuccess(false), 2000);
+  };
 
   // Action Triggers
   const handleDance = () => {
@@ -120,7 +157,7 @@ export default function RobotLab() {
         <div className="lg:col-span-7 glass-card p-6 sm:p-8 border border-white/10 flex flex-col items-center justify-between space-y-6 relative overflow-hidden">
           <div className="w-full flex items-center justify-between text-xs text-gray-400 border-b border-white/10 pb-3">
             <span className="flex items-center gap-1.5 font-semibold text-purple-300">
-              <Eye className="w-4 h-4" /> Dual Companion Viewport
+              <Eye className="w-4 h-4" /> Dual Companion Stage Preview
             </span>
             <span className="text-pink-400 font-medium">State: {ghostEmotion.toUpperCase()}</span>
           </div>
@@ -132,13 +169,15 @@ export default function RobotLab() {
               size="lg"
               showTinyCompanion={true}
               customEyeColor={customEyeColor}
+              accessorySkin={accessorySkin}
+              auraSkin={auraSkin}
               isDancing={isDancing}
               isWaving={isWaving}
               isSleeping={isSleeping}
             />
           </div>
 
-          {/* Eye Color & Glow Customizer Bar */}
+          {/* Eye Color Customizer */}
           <div className="w-full p-4 rounded-2xl bg-slate-950/70 border border-white/10 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-300 flex items-center gap-1.5">
@@ -164,12 +203,84 @@ export default function RobotLab() {
           </div>
         </div>
 
-        {/* Right: Emotion Grid & Interactive Playful Actions */}
+        {/* Right: Customization & Emotion Controls */}
         <div className="lg:col-span-5 space-y-5">
+          {/* ACCESSORY HATS & SKINS SELECTOR */}
+          <div className="glass-card p-5 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Shirt className="w-4 h-4 text-purple-400" /> Head Accessories & Hats
+              </h3>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {accessoryList.map((acc) => (
+                <button
+                  key={acc.id}
+                  onClick={() => {
+                    setAccessorySkin(acc.id);
+                    addLog(`[Outfit] Equipped accessory: ${acc.label}`);
+                  }}
+                  className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 ${
+                    accessorySkin === acc.id
+                      ? 'bg-purple-600/30 border-purple-400 text-white shadow-md shadow-purple-500/20'
+                      : 'bg-slate-900/50 border-white/5 text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <span className="text-lg">{acc.icon}</span>
+                  <span className="text-[10px] font-semibold">{acc.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* AURA GLOW SKINS */}
+          <div className="glass-card p-5 border border-white/10 space-y-3">
+            <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-cyan-400" /> Body Aura & FX Glow
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              {auraList.map((aura) => (
+                <button
+                  key={aura.id}
+                  onClick={() => {
+                    setAuraSkin(aura.id);
+                    addLog(`[Aura] Changed body aura effect: ${aura.label}`);
+                  }}
+                  className={`p-2 rounded-xl border text-center transition-all flex items-center justify-center gap-1.5 ${
+                    auraSkin === aura.id
+                      ? 'bg-cyan-600/30 border-cyan-400 text-white shadow-md shadow-cyan-500/20'
+                      : 'bg-slate-900/50 border-white/5 text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <span className="text-sm">{aura.icon}</span>
+                  <span className="text-xs font-semibold">{aura.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Save Active Companion Look Button */}
+            <button
+              onClick={handleSaveSkin}
+              className="w-full btn-primary py-2.5 text-xs flex items-center justify-center gap-1.5 mt-2"
+            >
+              {savedSkinSuccess ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span>Companion Look Saved Across App!</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-yellow-300" />
+                  <span>Set as Active Companion Outfit</span>
+                </>
+              )}
+            </button>
+          </div>
+
           {/* Emotion Matrix Selector */}
           <div className="glass-card p-5 border border-white/10 space-y-3">
             <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Heart className="w-4 h-4 text-pink-400" /> Expressive Emotions (Mirrored)
+              <Heart className="w-4 h-4 text-pink-400" /> Expressive Emotions
             </h3>
             <div className="grid grid-cols-3 gap-2">
               {emotionsList.map((e) => (
@@ -195,40 +306,28 @@ export default function RobotLab() {
             </div>
           </div>
 
-          {/* Interactive & Playful Action Buttons (Bottom Bar from Spec) */}
+          {/* Action Buttons */}
           <div className="glass-card p-5 border border-white/10 space-y-3">
             <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-purple-400" /> Interactive & Playful Actions
+              <Sparkles className="w-4 h-4 text-purple-400" /> Interactive Actions
             </h3>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                onClick={handleFollow}
-                className="btn-secondary p-3 flex flex-col items-center gap-1 text-center"
-              >
+              <button onClick={handleFollow} className="btn-secondary p-3 flex flex-col items-center gap-1 text-center">
                 <Move className="w-4 h-4 text-cyan-400" />
                 <span>Follows You</span>
               </button>
 
-              <button
-                onClick={handleDance}
-                className="btn-secondary p-3 flex flex-col items-center gap-1 text-center"
-              >
+              <button onClick={handleDance} className="btn-secondary p-3 flex flex-col items-center gap-1 text-center">
                 <Music className="w-4 h-4 text-pink-400" />
                 <span>Dances to Music</span>
               </button>
 
-              <button
-                onClick={handleWave}
-                className="btn-secondary p-3 flex flex-col items-center gap-1 text-center"
-              >
+              <button onClick={handleWave} className="btn-secondary p-3 flex flex-col items-center gap-1 text-center">
                 <Waves className="w-4 h-4 text-emerald-400" />
                 <span>Waves Hello</span>
               </button>
 
-              <button
-                onClick={handleExcited}
-                className="btn-secondary p-3 flex flex-col items-center gap-1 text-center"
-              >
+              <button onClick={handleExcited} className="btn-secondary p-3 flex flex-col items-center gap-1 text-center">
                 <Sparkles className="w-4 h-4 text-amber-400" />
                 <span>Gets Excited</span>
               </button>
@@ -243,10 +342,10 @@ export default function RobotLab() {
             </button>
           </div>
 
-          {/* Realtime Behavior Log */}
+          {/* Realtime Telemetry Log */}
           <div className="glass-card p-4 border border-white/10 space-y-2">
             <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">HRI Telemetry & Companion Log</h3>
-            <div className="p-3 rounded-xl bg-slate-950 font-mono text-[11px] text-gray-300 space-y-1 h-32 overflow-y-auto border border-white/5">
+            <div className="p-3 rounded-xl bg-slate-950 font-mono text-[11px] text-gray-300 space-y-1 h-28 overflow-y-auto border border-white/5">
               {activeLog.map((log, i) => (
                 <div key={i} className="leading-snug">{log}</div>
               ))}

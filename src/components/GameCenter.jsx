@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import CompanionAvatar from './CompanionAvatar';
 import confetti from 'canvas-confetti';
-import { Gamepad2, Sparkles, HelpCircle, BookOpen, Smile, Trophy, ArrowRight, RotateCcw } from 'lucide-react';
+import { Gamepad2, HelpCircle, BookOpen, ArrowRight, RotateCcw } from 'lucide-react';
 
 export default function GameCenter({ userProfile }) {
   const [activeGame, setActiveGame] = useState('wyr'); // 'wyr' | 'guessing' | 'story' | 'riddles'

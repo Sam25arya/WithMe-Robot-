@@ -1,26 +1,55 @@
 // WithMe Main Friendship Chat Interface Component
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import CompanionAvatar from './CompanionAvatar';
-import { Send, Mic, MicOff, Volume2, Sparkles, RefreshCw, Zap, Heart, MessageCircle } from 'lucide-react';
+import { Send, Mic, MicOff, Volume2, VolumeX, Sparkles, Radio, Settings2, SlidersHorizontal, AlertCircle } from 'lucide-react';
 import { sendCompanionMessage } from '../engine/aiService';
 import { getMoodById } from '../engine/moodThemeEngine';
+import { speechEngine } from '../engine/speechEngine';
+import { memoryStore } from '../engine/memoryStore';
 
 export default function ChatInterface({
   messages,
   setMessages,
   currentMoodId,
-  userProfile,
-  onMemoryExtracted
+  userProfile
 }) {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [companionEmotion, setCompanionEmotion] = useState(getMoodById(currentMoodId).avatarState);
   const [isListening, setIsListening] = useState(false);
-  const [autoSpeech, setAutoSpeech] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [interimText, setInterimText] = useState('');
+  const [micError, setMicError] = useState(null);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+
+  // Settings
+  const [appSettings, setAppSettings] = useState(() => memoryStore.getSettings());
+  const [autoSpeech, setAutoSpeech] = useState(appSettings.autoSpeechEnabled ?? false);
+  const [handsFreeMode, setHandsFreeMode] = useState(appSettings.handsFreeMode ?? false);
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState(appSettings.voiceURI || '');
+  const [voicePitch, setVoicePitch] = useState(appSettings.voicePitch ?? 1.1);
+  const [voiceRate, setVoiceRate] = useState(appSettings.voiceRate ?? 1.0);
+
   const messagesEndRef = useRef(null);
+  const handsFreeActiveRef = useRef(handsFreeMode);
+
+  useEffect(() => {
+    handsFreeActiveRef.current = handsFreeMode;
+  }, [handsFreeMode]);
 
   const mood = getMoodById(currentMoodId);
+
+  // Load voices on mount
+  useEffect(() => {
+    const updateVoices = () => {
+      const v = speechEngine.getVoices();
+      setAvailableVoices(v);
+    };
+    updateVoices();
+    speechEngine.onVoiceListChanged = updateVoices;
+  }, []);
 
   // Auto scroll to bottom
   const scrollToBottom = () => {
@@ -29,7 +58,7 @@ export default function ChatInterface({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [messages, isTyping, interimText]);
 
   // Quick contextual conversation starters
   const quickPrompts = [
@@ -40,36 +69,93 @@ export default function ChatInterface({
     { text: "Tell me a fun riddle!", icon: "🤔" }
   ];
 
-  // Text-to-Speech playback helper
-  const speakText = (text) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // Stop ongoing
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.pitch = 1.1;
-      utterance.rate = 1.0;
-      window.speechSynthesis.speak(utterance);
-    }
+  // Speech Output helper
+  const speakCompanionResponse = useCallback((text, onFinishCallback = null) => {
+    setIsSpeaking(true);
+    speechEngine.speak(text, {
+      voiceURI: selectedVoiceURI,
+      pitch: voicePitch,
+      rate: voiceRate,
+      onStart: () => setIsSpeaking(true),
+      onEnd: () => {
+        setIsSpeaking(false);
+        if (onFinishCallback) onFinishCallback();
+      },
+      onError: () => {
+        setIsSpeaking(false);
+        if (onFinishCallback) onFinishCallback();
+      }
+    });
+  }, [selectedVoiceURI, voicePitch, voiceRate]);
+
+  // Stop current speech
+  const handleStopSpeech = () => {
+    speechEngine.stop();
+    setIsSpeaking(false);
   };
 
-  // Voice Input (Web Speech Recognition API fallback)
-  const handleVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Speech recognition is not supported in this browser version. You can type your message!');
-      return;
+  // Save Voice Settings
+  const handleSaveVoiceSettings = (newURI, newPitch, newRate) => {
+    setSelectedVoiceURI(newURI);
+    setVoicePitch(newPitch);
+    setVoiceRate(newRate);
+    const updated = { ...appSettings, voiceURI: newURI, voicePitch: newPitch, voiceRate: newRate };
+    memoryStore.setSettings(updated);
+    setAppSettings(updated);
+  };
+
+  // Forward declaration of handleSendMessage
+  const sendMessageRef = useRef(null);
+
+  // Speech Recognition Control
+  const startMicListening = useCallback(() => {
+    setMicError(null);
+    setInterimText('');
+
+    speechEngine.startListening({
+      continuous: false,
+      interimResults: true,
+      onStart: () => setIsListening(true),
+      onResult: ({ finalTranscript, interimTranscript }) => {
+        if (interimTranscript) {
+          setInterimText(interimTranscript);
+        }
+        if (finalTranscript) {
+          setInterimText('');
+          setInputText(finalTranscript);
+          setIsListening(false);
+
+          // If in hands-free mode, auto send the spoken transcript!
+          if (handsFreeActiveRef.current && sendMessageRef.current) {
+            sendMessageRef.current(finalTranscript);
+          }
+        }
+      },
+      onError: (err) => {
+        setIsListening(false);
+        setInterimText('');
+        if (err !== 'no-speech' && err !== 'aborted') {
+          setMicError(`Microphone issue: ${err}`);
+        }
+      },
+      onEnd: () => {
+        setIsListening(false);
+      }
+    });
+  }, []);
+
+  const stopMicListening = useCallback(() => {
+    speechEngine.stopListening();
+    setIsListening(false);
+    setInterimText('');
+  }, []);
+
+  const toggleMicListening = () => {
+    if (isListening) {
+      stopMicListening();
+    } else {
+      startMicListening();
     }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      setInputText(transcript);
-    };
-
-    recognition.start();
   };
 
   // Send Message Handler
@@ -77,17 +163,24 @@ export default function ChatInterface({
     const text = textToSend.trim();
     if (!text || isTyping) return;
 
+    // Stop active listening or speaking when sending
+    stopMicListening();
+    handleStopSpeech();
+
+    const timestampStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     // Append User Message
     const userMsg = {
-      id: 'msg-' + Date.now(),
+      id: 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
       sender: 'user',
       text: text,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: timestampStr
     };
 
     const newHistory = [...messages, userMsg];
     setMessages(newHistory);
     setInputText('');
+    setInterimText('');
     setIsTyping(true);
 
     // Call AI Companion Service
@@ -99,7 +192,7 @@ export default function ChatInterface({
       });
 
       const companionMsg = {
-        id: 'msg-' + (Date.now() + 1),
+        id: 'msg-' + (Date.now() + 1) + '-' + Math.random().toString(36).substr(2, 4),
         sender: 'companion',
         text: aiResult.text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -109,8 +202,16 @@ export default function ChatInterface({
       setMessages([...newHistory, companionMsg]);
       setCompanionEmotion(aiResult.emotionState || mood.avatarState);
 
-      if (autoSpeech) {
-        speakText(aiResult.text);
+      // Auto Read Out Loud if AutoSpeech or HandsFree is enabled
+      if (autoSpeech || handsFreeMode) {
+        speakCompanionResponse(aiResult.text, () => {
+          // If HandsFree mode is active, automatically reactivate mic for seamless user voice reply!
+          if (handsFreeActiveRef.current) {
+            setTimeout(() => {
+              startMicListening();
+            }, 600);
+          }
+        });
       }
     } catch (err) {
       console.error('Chat error:', err);
@@ -119,19 +220,47 @@ export default function ChatInterface({
     }
   };
 
+  useEffect(() => {
+    sendMessageRef.current = handleSendMessage;
+  });
+
   return (
-    <div className="flex flex-col h-[calc(100vh-130px)] max-w-5xl mx-auto w-full glass-card overflow-hidden border border-white/10 shadow-2xl my-2">
+    <div className="flex flex-col h-[calc(100vh-130px)] max-w-5xl mx-auto w-full glass-card overflow-hidden border border-white/10 shadow-2xl my-2 relative">
       {/* Header Bar */}
-      <div className="flex items-center justify-between px-6 py-4 bg-slate-950/60 border-b border-white/10">
+      <div className="flex items-center justify-between px-6 py-4 bg-slate-950/70 border-b border-white/10 backdrop-blur-md">
         <div className="flex items-center gap-4">
-          <CompanionAvatar emotionState={companionEmotion} isSpeaking={isTyping} size="sm" />
+          <div className="relative">
+            <CompanionAvatar
+              emotionState={companionEmotion}
+              isSpeaking={isSpeaking || isTyping}
+              size="sm"
+              accessorySkin={appSettings.accessorySkin || 'headphones'}
+              auraSkin={appSettings.auraSkin || 'cyber'}
+            />
+            {isSpeaking && (
+              <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-purple-500"></span>
+              </span>
+            )}
+          </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-white">WithMe Companion</h2>
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
+              {isSpeaking ? (
+                <span className="text-[10px] bg-purple-600/40 text-purple-200 border border-purple-400/40 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                  <Volume2 className="w-3 h-3" /> Speaking...
+                </span>
+              ) : isListening ? (
+                <span className="text-[10px] bg-red-600/40 text-red-200 border border-red-400/40 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                  <Radio className="w-3 h-3" /> Listening...
+                </span>
+              ) : (
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              )}
             </div>
             <p className="text-xs text-purple-300 font-medium flex items-center gap-1.5">
               <span>Mood: {mood.emoji} {mood.label}</span>
@@ -141,10 +270,41 @@ export default function ChatInterface({
           </div>
         </div>
 
-        {/* Header Controls */}
+        {/* Header Voice & Hands-Free Controls */}
         <div className="flex items-center gap-2">
+          {/* Hands-Free Mode Toggle */}
           <button
-            onClick={() => setAutoSpeech(!autoSpeech)}
+            onClick={() => {
+              const nextVal = !handsFreeMode;
+              setHandsFreeMode(nextVal);
+              if (nextVal) {
+                setAutoSpeech(true);
+                startMicListening();
+              } else {
+                stopMicListening();
+              }
+              const updated = { ...appSettings, handsFreeMode: nextVal, autoSpeechEnabled: nextVal || autoSpeech };
+              memoryStore.setSettings(updated);
+            }}
+            className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              handsFreeMode
+                ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white border-pink-400/50 shadow-lg shadow-pink-500/30'
+                : 'bg-white/5 border-white/10 text-gray-400 hover:text-gray-200'
+            }`}
+            title="Hands-Free Walkie-Talkie Mode: Continuous voice conversation"
+          >
+            <Radio className={`w-4 h-4 ${handsFreeMode ? 'animate-pulse text-white' : ''}`} />
+            <span className="hidden sm:inline">{handsFreeMode ? 'Hands-Free ON' : 'Hands-Free'}</span>
+          </button>
+
+          {/* Auto Read Out Loud Toggle */}
+          <button
+            onClick={() => {
+              const nextVal = !autoSpeech;
+              setAutoSpeech(nextVal);
+              const updated = { ...appSettings, autoSpeechEnabled: nextVal };
+              memoryStore.setSettings(updated);
+            }}
             className={`p-2 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-all ${
               autoSpeech
                 ? 'bg-purple-600/30 border-purple-500/50 text-purple-200'
@@ -152,11 +312,97 @@ export default function ChatInterface({
             }`}
             title="Toggle automatic speech out loud"
           >
-            <Volume2 className="w-4 h-4" />
-            <span className="hidden sm:inline">{autoSpeech ? 'Voice On' : 'Voice Off'}</span>
+            {autoSpeech ? <Volume2 className="w-4 h-4 text-purple-400" /> : <VolumeX className="w-4 h-4 text-gray-500" />}
+            <span className="hidden md:inline">{autoSpeech ? 'Voice On' : 'Voice Off'}</span>
+          </button>
+
+          {/* Voice Tuning Customization Drawer Button */}
+          <button
+            onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+            className="p-2 rounded-xl border bg-white/5 border-white/10 text-gray-400 hover:text-white transition-all"
+            title="Voice & Speech Settings"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
           </button>
         </div>
       </div>
+
+      {/* Voice Tuning Settings Panel Modal Overlay */}
+      {showVoiceSettings && (
+        <div className="absolute top-16 right-4 z-40 w-80 p-4 rounded-2xl glass-card border border-purple-500/40 shadow-2xl space-y-4 animate-fadeIn">
+          <div className="flex items-center justify-between pb-2 border-b border-white/10">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <Settings2 className="w-4 h-4 text-purple-400" />
+              <span>Voice & Synth Customization</span>
+            </h4>
+            <button
+              onClick={() => setShowVoiceSettings(false)}
+              className="text-gray-400 hover:text-white text-xs font-bold px-2 py-0.5 rounded bg-white/5"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Voice Selection Dropdown */}
+          <div>
+            <label className="text-xs text-gray-300 block mb-1">Companion Voice</label>
+            <select
+              value={selectedVoiceURI}
+              onChange={(e) => handleSaveVoiceSettings(e.target.value, voicePitch, voiceRate)}
+              className="w-full glass-input text-xs py-2 px-2.5 rounded-xl bg-slate-900 text-white"
+            >
+              <option value="">Auto Selected (Default)</option>
+              {availableVoices.map((v) => (
+                <option key={v.voiceURI} value={v.voiceURI}>
+                  {v.name} ({v.lang})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Pitch Slider */}
+          <div>
+            <div className="flex justify-between text-xs text-gray-300 mb-1">
+              <span>Voice Pitch</span>
+              <span className="text-purple-400 font-mono">{voicePitch.toFixed(1)}x</span>
+            </div>
+            <input
+              type="range"
+              min="0.5"
+              max="1.8"
+              step="0.1"
+              value={voicePitch}
+              onChange={(e) => handleSaveVoiceSettings(selectedVoiceURI, parseFloat(e.target.value), voiceRate)}
+              className="w-full accent-purple-500 cursor-pointer"
+            />
+          </div>
+
+          {/* Speed / Rate Slider */}
+          <div>
+            <div className="flex justify-between text-xs text-gray-300 mb-1">
+              <span>Speech Speed</span>
+              <span className="text-purple-400 font-mono">{voiceRate.toFixed(1)}x</span>
+            </div>
+            <input
+              type="range"
+              min="0.6"
+              max="1.6"
+              step="0.1"
+              value={voiceRate}
+              onChange={(e) => handleSaveVoiceSettings(selectedVoiceURI, voicePitch, parseFloat(e.target.value))}
+              className="w-full accent-purple-500 cursor-pointer"
+            />
+          </div>
+
+          <button
+            onClick={() => speakCompanionResponse("Hello there! This is how my customized voice sounds like!")}
+            className="w-full btn-secondary py-2 text-xs flex items-center justify-center gap-1.5"
+          >
+            <Volume2 className="w-3.5 h-3.5 text-purple-400" />
+            <span>Test Voice Audio</span>
+          </button>
+        </div>
+      )}
 
       {/* Messages Scroll View */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
@@ -182,7 +428,7 @@ export default function ChatInterface({
               >
                 {!isUser && (
                   <div className="shrink-0 mt-1">
-                    <CompanionAvatar emotionState={companionEmotion} size="sm" />
+                    <CompanionAvatar emotionState={companionEmotion} isSpeaking={isSpeaking} size="sm" />
                   </div>
                 )}
                 <div>
@@ -202,11 +448,17 @@ export default function ChatInterface({
                     )}
                     {!isUser && (
                       <button
-                        onClick={() => speakText(msg.text)}
-                        className="hover:text-purple-400 transition-colors"
-                        title="Read out loud"
+                        onClick={() => {
+                          if (isSpeaking) {
+                            handleStopSpeech();
+                          } else {
+                            speakCompanionResponse(msg.text);
+                          }
+                        }}
+                        className="hover:text-purple-400 transition-colors flex items-center gap-1"
+                        title={isSpeaking ? "Stop reading" : "Read out loud"}
                       >
-                        <Volume2 className="w-3 h-3" />
+                        <Volume2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
@@ -230,6 +482,36 @@ export default function ChatInterface({
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Mic Warning Error Banner */}
+      {micError && (
+        <div className="px-4 py-2 bg-red-950/80 border-t border-red-500/30 text-red-300 text-xs flex items-center justify-between">
+          <span className="flex items-center gap-1.5">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+            {micError}
+          </span>
+          <button onClick={() => setMicError(null)} className="text-gray-400 hover:text-white">✕</button>
+        </div>
+      )}
+
+      {/* Live Interim Speech Recognition Bar */}
+      {(isListening || interimText) && (
+        <div className="px-4 py-2.5 bg-purple-950/60 border-t border-purple-500/30 flex items-center gap-3 animate-fadeIn">
+          <div className="flex items-center gap-1 text-red-400 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Listening</span>
+          </div>
+          <p className="text-xs text-purple-200 italic truncate flex-1">
+            "{interimText || 'Speak clearly into your microphone...'}"
+          </p>
+          <button
+            onClick={stopMicListening}
+            className="text-[11px] text-gray-400 hover:text-white px-2 py-0.5 rounded bg-white/10"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       {/* Quick Prompts Bar */}
       <div className="px-4 py-2 border-t border-white/5 bg-slate-950/40 overflow-x-auto flex items-center gap-2 no-scrollbar">
@@ -258,13 +540,13 @@ export default function ChatInterface({
           {/* Voice Input Button */}
           <button
             type="button"
-            onClick={handleVoiceInput}
-            className={`p-3 rounded-xl border transition-all ${
+            onClick={toggleMicListening}
+            className={`p-3 rounded-xl border transition-all flex items-center justify-center ${
               isListening
-                ? 'bg-red-500/20 border-red-500 text-red-400 animate-pulse'
+                ? 'bg-red-500/30 border-red-500 text-red-300 animate-pulse shadow-lg shadow-red-500/20'
                 : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
             }`}
-            title="Speech input"
+            title={isListening ? "Stop listening" : "Start speech voice input"}
           >
             {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
@@ -274,7 +556,11 @@ export default function ChatInterface({
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder={`Talk to WithMe (${mood.label} mode)...`}
+            placeholder={
+              handsFreeMode
+                ? "Hands-free active! Speak anytime or type here..."
+                : `Talk to WithMe (${mood.label} mode)...`
+            }
             className="flex-1 glass-input py-3 px-4 text-sm"
           />
 

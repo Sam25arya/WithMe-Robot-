@@ -1,20 +1,16 @@
 // WithMe Memory Vault & Privacy Control Component
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { memoryStore } from '../engine/memoryStore';
-import { Brain, ShieldCheck, Trash2, Plus, Search, Tag, AlertTriangle, Calendar, Lock } from 'lucide-react';
+import { Brain, ShieldCheck, Trash2, Plus, Search, Tag, Calendar, Lock } from 'lucide-react';
 
 export default function MemoryVault({ userProfile }) {
-  const [memories, setMemories] = useState([]);
+  const [memories, setMemories] = useState(() => memoryStore.getMemories());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState('Preferences');
   const [showAddModal, setShowAddModal] = useState(false);
-
-  useEffect(() => {
-    setMemories(memoryStore.getMemories());
-  }, []);
 
   const categories = ['All', 'Events', 'Preferences', 'Communication', 'Personal', 'Academic'];
 

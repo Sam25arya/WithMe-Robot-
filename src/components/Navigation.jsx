@@ -1,7 +1,7 @@
 // WithMe Header Navigation Component
 
 import React from 'react';
-import { MessageSquare, Brain, Gamepad2, Bell, Cpu, Settings, Heart, Smile } from 'lucide-react';
+import { MessageSquare, Brain, Gamepad2, Bell, Cpu, Settings, Heart, Smile, Flame } from 'lucide-react';
 import { getMoodById } from '../engine/moodThemeEngine';
 
 export default function Navigation({
@@ -10,12 +10,13 @@ export default function Navigation({
   currentMoodId,
   onOpenMoodModal,
   onOpenSettings,
-  userProfile
+  userProfile: _userProfile
 }) {
   const mood = getMoodById(currentMoodId);
 
   const navItems = [
     { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'trainingStudio', label: 'AI Training Studio 🧠', icon: Flame },
     { id: 'memory', label: 'Memory Vault', icon: Brain },
     { id: 'games', label: 'AI Games', icon: Gamepad2 },
     { id: 'reminders', label: 'Reminders', icon: Bell },
